@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Identity;
 using SharedLibrary.Dtos;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,14 +17,16 @@ namespace UdemyAuthServer.Service.Services
     public class UserService : IUserService
     {
         private readonly UserManager<UserApp> _userManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
 
-        public UserService(UserManager<UserApp> userManager)
+        public UserService(UserManager<UserApp> userManager, RoleManager<IdentityRole> roleManager)
         {
-                _userManager= userManager;
+            _userManager = userManager;
+            _roleManager = roleManager;
         }
         public async Task<Response<UserAppDto>> CreateUserAsync(CreateUserDto createUserDto)
         {
-           var user = new UserApp { Email = createUserDto.Email, UserName =  createUserDto.Username};
+            var user = new UserApp { Email = createUserDto.Email, UserName = createUserDto.Username, City = "city" };
 
             var result = await _userManager.CreateAsync(user, createUserDto.Password);
 
@@ -33,6 +38,22 @@ namespace UdemyAuthServer.Service.Services
             }
 
             return Response<UserAppDto>.Success(ObjectMapper.Mapper.Map<UserAppDto>(user), 200);
+        }
+
+        public async Task<Response<NoContent>> CreateUserRoles(string userName)
+        {
+            if (! await _roleManager.RoleExistsAsync("admin"))
+            {
+                await _roleManager.CreateAsync(new IdentityRole { Name = "admin" });
+                await _roleManager.CreateAsync(new IdentityRole { Name = "manager" });
+            }           
+
+            var user = await _userManager.FindByNameAsync(userName);
+
+            await _userManager.AddToRoleAsync(user, "admin");
+            await _userManager.AddToRoleAsync(user, "manager");
+
+            return Response<NoContent>.Success(StatusCodes.Status201Created);
         }
 
         public async Task<Response<UserAppDto>> GetUserByNameAsync(string username)

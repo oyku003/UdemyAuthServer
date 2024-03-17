@@ -6,7 +6,7 @@ using UdemyAuthServer.Core.Services;
 
 namespace UdemyAuthServer.API.Controllers
 {
-    [Route("api/[controller]/[action")]
+    [Route("api/[controller]/[action]")]
     [ApiController]
     public class AuthController : CustomBaseController
     {
@@ -35,7 +35,7 @@ namespace UdemyAuthServer.API.Controllers
         [HttpPost]
         public async Task<IActionResult> RevokeRefreshToken(RefreshTokenDto refreshTokenDto)
         {
-            var result = await _authenticationService.CreateTokenByRefreshTokenAsync(refreshToken: refreshTokenDto.Token);
+            var result = await _authenticationService.RevokeRefreshTokenAsync(refreshToken: refreshTokenDto.Token);
 
             return ActionResultInstance(result);
         }

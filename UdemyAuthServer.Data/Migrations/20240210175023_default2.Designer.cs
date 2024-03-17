@@ -12,8 +12,8 @@ using UdemyAuthServer.Data;
 namespace UdemyAuthServer.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20231227180307_initial")]
-    partial class initial
+    [Migration("20240210175023_default2")]
+    partial class default2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -193,6 +193,9 @@ namespace UdemyAuthServer.Data.Migrations
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("BirthDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("City")
                         .IsRequired()

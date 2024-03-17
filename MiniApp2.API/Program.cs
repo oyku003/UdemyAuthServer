@@ -1,8 +1,14 @@
+using SharedLibrary.Configurations;
+using SharedLibrary.Extension;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddRazorPages();
+builder.Services.Configure<CustomTokenOption>(builder.Configuration.GetSection("TokenOption"));
+var tokenOptions = builder.Configuration.GetSection("TokenOption").Get<CustomTokenOption>();
 
+builder.Services.AddCustomTokenAuth(tokenOptions);
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -17,7 +23,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();

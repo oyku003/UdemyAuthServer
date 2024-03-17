@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SharedLibrary.Configurations;
+using SharedLibrary.Services;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -22,9 +23,10 @@ namespace UdemyAuthServer.Service.Services
         private readonly UserManager<UserApp> userManager;
         private readonly CustomTokenOption customTokenOption;
 
-        public TokenService(IOptions<CustomTokenOption> options)
+        public TokenService(IOptions<CustomTokenOption> options, UserManager<UserApp> userManager)
         {
             customTokenOption = options.Value;
+            this.userManager = userManager;
         }
 
         private string CreateRefreshToken()
@@ -36,16 +38,19 @@ namespace UdemyAuthServer.Service.Services
             return Convert.ToBase64String(numberByte);
         }
 
-        private IEnumerable<Claim> GetClaim(UserApp user , List<string> audiences)//payloadda olmasını istediklerimizi claim olarak ekledik.
+        private async Task<IEnumerable<Claim>> GetClaim(UserApp user , List<string> audiences)//token payloadda olmasını istediklerimizi claim olarak ekledik.
         {
+            var userRoles = await userManager.GetRolesAsync(user);
             var users =new List<Claim> { new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email), 
                 new Claim(ClaimTypes.Name, user.UserName) ,
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),//jti-> kimliklendirme için id
+                new Claim("city", user.City),//jti-> kimliklendirme için id
+                new Claim("birth-date", user.BirthDate.ToString()),//jti-> kimliklendirme için id
             };
 
             users.AddRange(audiences.Select(x=> new Claim(JwtRegisteredClaimNames.Aud, x)));
-
+            users.AddRange(userRoles.Select(x => new Claim(ClaimTypes.Role, x)));
             return users;
         }
         private IEnumerable<Claim> GetClaimsByClient(Client client)
@@ -67,7 +72,7 @@ namespace UdemyAuthServer.Service.Services
             JwtSecurityToken jwtSecurityToken = new JwtSecurityToken(issuer: customTokenOption.Issuer,
                 expires:accessTokenExpiration,
                 notBefore: DateTime.Now,
-                claims:GetClaim(userApp, customTokenOption.Audience),
+                claims: GetClaim(userApp, customTokenOption.Audience).Result,
                 signingCredentials: signingCredentials
                 );
 
@@ -94,7 +99,7 @@ namespace UdemyAuthServer.Service.Services
                 expires: accessTokenExpiration,
                 notBefore: DateTime.Now,
                 claims:GetClaimsByClient(client),
-                signingCredentials: signingCredentials
+                audience: customTokenOption.Audience.ToList().ToString()
                 );
 
             var handler = new JwtSecurityTokenHandler();
@@ -109,7 +114,26 @@ namespace UdemyAuthServer.Service.Services
         }
         public ClientTokenDto CreateTokenByClient(Client client)
         {
-            throw new NotImplementedException();
+            var accessTokenExpiration = DateTime.Now.AddMinutes(customTokenOption.AccessTokenExpiration);
+            var securityKey = SignService.GetSymmetricSecurityKey(customTokenOption.SecurityKey);
+            SigningCredentials signingCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
+
+            JwtSecurityToken jwtSecurityToken = new JwtSecurityToken(issuer: customTokenOption.Issuer,
+                expires: accessTokenExpiration,
+                notBefore: DateTime.Now,
+                signingCredentials: signingCredentials,
+               claims: GetClaimsByClient(client)
+                );
+
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.WriteToken(jwtSecurityToken);
+            var tokenDto = new ClientTokenDto
+            {
+                AccessToken = token,
+                AccessTokenExpiration = accessTokenExpiration
+            };
+
+            return tokenDto;
         }
     }
 }
